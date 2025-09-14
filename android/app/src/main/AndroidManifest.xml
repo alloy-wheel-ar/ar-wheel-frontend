@@ -39,7 +39,7 @@
         </intent-filter>
       </activity>
       <activity
-        android:name=".modules.ARSceneViewActivity"
+        android:name=".modules.ARActivity"
         android:screenOrientation="portrait"
         android:exported="false"
         android:launchMode="singleTop"

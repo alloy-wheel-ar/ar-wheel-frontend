@@ -1,4 +1,4 @@
-package com.arapp.modules
+package com.arwheelapp.modules
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
