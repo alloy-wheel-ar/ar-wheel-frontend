@@ -38,6 +38,13 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+      <activity
+        android:name=".modules.ARSceneViewActivity"
+        android:screenOrientation="portrait"
+        android:exported="false"
+        android:launchMode="singleTop"
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+      </activity>
       <meta-data android:name="com.google.ar.core" android:value="required" tools:replace="android:value"/>
     </application>
 </manifest>
