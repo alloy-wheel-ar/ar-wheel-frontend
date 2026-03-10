@@ -39,8 +39,12 @@ api.interceptors.response.use(
   response => response,
   async error => {
     const status = error?.response?.status;
+    const url = error?.config?.url;
 
-    if (status === 401) {
+    // Skip global 401 handling for specific auth endpoints
+    const isAuthEndpoint = url?.includes('/Auth/login') || url?.includes('/Auth/Changepassword');
+
+    if (status === 401 && !isAuthEndpoint) {
       // เคลียร์ข้อมูล auth ออกจากเครื่อง
       await removeToken();
       await removeUserData();
@@ -51,7 +55,6 @@ api.interceptors.response.use(
         'Your login session has expired. Please login again.',
       );
 
-      // TODO (ถ้าอยาก auto redirect): ใช้ navigationRef.reset({ ... }) ไปหน้า SignIn
     }
 
     return Promise.reject(error);

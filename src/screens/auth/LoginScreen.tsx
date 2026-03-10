@@ -34,8 +34,23 @@ const LoginScreen = () => {
     setIsLoading(true);
     try {
       await login(email, password);
-    } catch (error) {
-      Alert.alert('Login Failed', 'Invalid email or password');
+    } catch (error: any) {
+      let msg = 'Invalid email or password';
+
+      if (error?.response?.data?.message) {
+        const backendMsg = error.response.data.message;
+
+        if (Array.isArray(backendMsg)) {
+          msg = backendMsg.join('\n');
+        } 
+        else if (typeof backendMsg === 'string') {
+          msg = backendMsg;
+        }
+      } else if (error?.message) {
+        msg = error.message;
+      }
+
+      Alert.alert('Login Failed', msg);
     } finally {
       setIsLoading(false);
     }

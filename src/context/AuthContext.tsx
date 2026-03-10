@@ -74,6 +74,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     try {
       const response = await authService.login(emailOrUser, pass);
+      if (!response?.data) throw new Error('Invalid server response');
       const { access_token, user, categories: cats } = response.data;
       if (!access_token) throw new Error('No access token received');
 
@@ -95,9 +96,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUserRole(user.role || 'user');
       if (cats) setCategoriesState(cats);
     } catch (error: any) {
-      console.error('Login Error:', error);
-      const msg = error?.response?.data?.message || 'Invalid email or password';
-      Alert.alert('Login Failed', msg);
+      console.error('Login Error in Context:', error);
+      throw error; 
     } finally {
       setIsLoading(false);
     }
