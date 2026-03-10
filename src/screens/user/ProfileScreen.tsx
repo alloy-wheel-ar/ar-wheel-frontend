@@ -28,19 +28,28 @@ const ProfileScreen = () => {
   const isAdmin = userRole === 'admin';
 
   const getProfileImage = () => {
-    const imgUrl = userData?.profileImg || userData?.profileImageUrl;
+    // Tweak to look out for 'profileImg' carefully. 
+    const imgUrl = userData?.profileImg || userData?.profileImageUrl || userData?.photoURL;
     if (!imgUrl) {
       return 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
     }
-    const separator = imgUrl.includes('?') ? '&' : '?';
-    return `${imgUrl}${separator}t=${new Date().getTime()}`;
+    
+    // If it's a firebase URL, adding a bare '&t=' can break signature/token if not done right
+    // EditProfileScreen already handles appending timestamp accurately before saving
+    return imgUrl;
   };
 
   const user = {
     displayName: userData?.displayName || 'Guest User',
     email: userData?.email || 'Sign in to access features',
-    profileImg: userData?.profileImg || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+    profileImg: getProfileImage(),
   };
+
+  React.useEffect(() => {
+    console.log('[DEBUG ProfileScreen] Raw userData:', userData);
+    console.log('[DEBUG ProfileScreen] Computed Profile Image URL:', user.profileImg);
+  }, [userData, user.profileImg]);
+
   const handleRestrictedAction = () => {
     Alert.alert('Login Required', 'Please login to use this feature.', [
       { text: 'Cancel', style: 'cancel' },
@@ -142,10 +151,7 @@ const ProfileScreen = () => {
           <View style={styles.header}>
             <Image
               key={user.profileImg}
-              source={{ 
-                uri: user.profileImg,
-                cache: 'reload'
-              }}
+              source={{ uri: user.profileImg }}
               style={styles.avatar}
             />
             <Text style={[styles.name, { color: theme.text }]}>
@@ -209,7 +215,7 @@ const ProfileScreen = () => {
               <MenuItem
                 icon="chart-bar"
                 title="System Statistics"
-                onPress={() => navigation.navigate('AdminDashboard')}
+                onPress={() => navigation.navigate('SystemStats')}
               />
             </View>
           )}
@@ -237,7 +243,7 @@ const ProfileScreen = () => {
               <MenuItem
                 icon="chart-bar"
                 title="Store Statistics"
-                onPress={() => navigation.navigate('AdminDashboard')}
+                onPress={() => navigation.navigate('StoreStats')}
               />
             </View>
           )}

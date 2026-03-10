@@ -93,7 +93,7 @@ export const productService = {
       imageFiles.forEach(img => formData.append('imageFiles', img));
     }
 
-    return api.patch(`/models/${id}`, formData, {
+    return api.patch(`/models/with-file/${id}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },

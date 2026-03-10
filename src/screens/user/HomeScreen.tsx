@@ -11,12 +11,13 @@ import {
   Platform,
   StatusBar,
   Modal,
-  ScrollView,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MMKV } from 'react-native-mmkv';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const storage = new MMKV();
 import { WheelModel } from '../../utils/types';
@@ -24,7 +25,6 @@ import api from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = width / 2 - 24;
@@ -35,6 +35,7 @@ const HomeScreen = () => {
   const { t } = useLanguage();
   const { categories: storedCategories } = useAuth();
 
+  const [allCategories, setAllCategories] = useState<any[]>([]);
   const [wheels, setWheels] = useState<WheelModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -48,10 +49,12 @@ const HomeScreen = () => {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
 
-  // Build category list from stored categories
+  // Build category list from fetched categories (fallback to stored if empty)
+  const baseCategories = allCategories.length > 0 ? allCategories : (storedCategories || []);
+  
   const categoryList = [
     { id: 'All', name: 'All' },
-    ...(storedCategories || []).filter((c: any) => c.isActive !== false),
+    ...baseCategories.filter((c: any) => c.isActive !== false),
   ];
 
   const fetchWheels = useCallback(async (isRefresh = false) => {
@@ -63,14 +66,7 @@ const HomeScreen = () => {
       }
 
       const params: any = {};
-      if (searchQuery) params.searchTerm = searchQuery;
-      if (selectedCategory !== 'All') params.categoryId = selectedCategory;
-      if (minPrice) params.minPrice = Number(minPrice);
-      if (maxPrice) params.maxPrice = Number(maxPrice);
       if (!isRefresh && lastVisibleId) params.lastVisibleId = lastVisibleId;
-
-      // Add OS filter
-      params.os = Platform.OS;
 
       const response = await api.get('/models', { params });
       const data: WheelModel[] = response.data;
@@ -78,7 +74,7 @@ const HomeScreen = () => {
       if (isRefresh) {
         setWheels(data);
         // Cache the first page of results
-        if (!searchQuery && selectedCategory === 'All' && !minPrice && !maxPrice) {
+        if (!searchQuery) {
           try {
             storage.set('@cached_wheels', JSON.stringify(data));
           } catch (err) {
@@ -106,7 +102,7 @@ const HomeScreen = () => {
         setLoadingMore(false);
       }, 300);
     }
-  }, [searchQuery, selectedCategory, minPrice, maxPrice, lastVisibleId]);
+  }, [searchQuery, lastVisibleId]);
 
   // Initial load
   useEffect(() => {
@@ -130,6 +126,23 @@ const HomeScreen = () => {
     loadCacheThenFetch();
   }, []);
 
+  // Fetch all categories for filter
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.get('/categories');
+        setAllCategories(response.data);
+      } catch (error) {
+        console.error('Fetch categories error:', error);
+        if (storedCategories) {
+          setAllCategories(storedCategories);
+        }
+      }
+    };
+
+    fetchCategories();
+  }, [storedCategories]);
+
   // Refresh
   const onRefresh = () => {
     setRefreshing(true);
@@ -147,18 +160,13 @@ const HomeScreen = () => {
   // Apply filters
   const handleApplyFilter = () => {
     setFilterVisible(false);
-    fetchWheels(true);
   };
 
   const handleResetFilter = () => {
     setSelectedCategory('All');
     setMinPrice('');
     setMaxPrice('');
-  };
-
-  // Search with debounce
-  const handleSearchSubmit = () => {
-    fetchWheels(true);
+    setSearchQuery('');
   };
 
   const renderItem = ({ item }: { item: WheelModel }) => (
@@ -207,6 +215,39 @@ const HomeScreen = () => {
     );
   };
 
+  const displayedWheels = React.useMemo(() => {
+    return wheels.filter(item => {
+      let match = true;
+      if (selectedCategory !== 'All') {
+        const selectedCatObj = categoryList.find((c: any) => c.id === selectedCategory);
+        if (selectedCatObj) {
+          const lowerSelectedName = selectedCatObj.name.toLowerCase();
+          const lowerSelectedId = selectedCategory.toLowerCase();
+          const hasCategory = item.categories?.some((c: string) => {
+            const lowerC = String(c).toLowerCase();
+            return lowerC === lowerSelectedId || lowerC === lowerSelectedName;
+          });
+          if (!hasCategory) match = false;
+        }
+      }
+      if (minPrice) {
+        if (Number(item.price) < Number(minPrice)) match = false;
+      }
+      if (maxPrice) {
+        if (Number(item.price) > Number(maxPrice)) match = false;
+      }
+      if (searchQuery) {
+        const lowerSearch = searchQuery.toLowerCase();
+        const lowerName = (item.name || '').toLowerCase();
+        const lowerBrand = (item.brand || '').toLowerCase();
+        if (!lowerName.includes(lowerSearch) && !lowerBrand.includes(lowerSearch)) {
+          match = false;
+        }
+      }
+      return match;
+    });
+  }, [wheels, selectedCategory, minPrice, maxPrice, categoryList, searchQuery]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar
@@ -242,8 +283,6 @@ const HomeScreen = () => {
               style={[styles.searchInput, { color: theme.text }]}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              onSubmitEditing={handleSearchSubmit}
-              returnKeyType="search"
             />
           </View>
           <TouchableOpacity
@@ -256,35 +295,6 @@ const HomeScreen = () => {
             <Icon name="tune-variant" size={24} color="#2563EB" />
           </TouchableOpacity>
         </View>
-
-        <View style={styles.quickCategoryContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {categoryList.map((cat: any) => (
-              <TouchableOpacity
-                key={cat.id}
-                onPress={() => {
-                  setSelectedCategory(cat.id === 'All' ? 'All' : cat.id);
-                  // Auto refresh when category changes
-                  setTimeout(() => fetchWheels(true), 100);
-                }}
-                style={[
-                  styles.quickCatPill,
-                  { backgroundColor: isDarkMode ? '#334155' : '#F1F5F9' },
-                  (selectedCategory === cat.id || (selectedCategory === 'All' && cat.id === 'All')) && styles.quickCatPillActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.quickCatText,
-                    (selectedCategory === cat.id || (selectedCategory === 'All' && cat.id === 'All')) && styles.quickCatTextActive,
-                  ]}
-                >
-                  {cat.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
       </View>
 
       {loading ? (
@@ -292,19 +302,20 @@ const HomeScreen = () => {
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
       ) : (
-        <FlatList
-          data={wheels}
-          renderItem={renderItem}
-          keyExtractor={item => item.id.toString()}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          onRefresh={onRefresh}
-          refreshing={refreshing}
-          onEndReached={onEndReached}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={renderFooter}
+        <View style={{ flex: 1 }}>
+          <FlatList
+            data={displayedWheels}
+            renderItem={renderItem}
+            keyExtractor={item => item.id.toString()}
+            numColumns={2}
+            columnWrapperStyle={styles.row}
+            contentContainerStyle={[styles.listContent, { paddingBottom: 150, flexGrow: 1 }]}
+            showsVerticalScrollIndicator={false}
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            onEndReached={onEndReached}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <Text
               style={{
@@ -317,6 +328,7 @@ const HomeScreen = () => {
             </Text>
           }
         />
+        </View>
       )}
 
       {/* Filter Modal */}
@@ -326,73 +338,98 @@ const HomeScreen = () => {
         visible={isFilterVisible}
         onRequestClose={() => setFilterVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setFilterVisible(false)}
+        >
+          {/* หุ้ม Container ด้วย TouchableOpacity อีกชั้น เพื่อไม่ให้การกดข้างใน Modal ทะลุไปปิด */}
+          <TouchableOpacity 
+            activeOpacity={1} 
+            onPress={e => e.stopPropagation()} 
             style={[
               styles.modalContainer,
-              { backgroundColor: theme.background },
+              { backgroundColor: theme.background, maxHeight: '80%' },
             ]}
           >
             <Text style={[styles.filterTitle, { color: theme.text }]}>
               Filter
             </Text>
 
-            <View style={[styles.filterCard, { backgroundColor: theme.card }]}>
-              {/* Category */}
-              <TouchableOpacity
-                style={[styles.filterRow, { borderBottomColor: theme.border }]}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.filterLabel, { color: theme.text }]}>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 20 }}>
+              <View style={[styles.filterCard, { backgroundColor: theme.card }]}>
+
+                {/* --- Categories Section --- */}
+                <Text style={[styles.filterSectionTitle, { color: theme.text }]}>
                   Category
                 </Text>
-                <View style={styles.filterRowRight}>
-                  <Text style={[styles.filterValue, { color: theme.subText }]}>
-                    {selectedCategory === 'All'
-                      ? 'All'
-                      : categoryList.find((c: any) => c.id === selectedCategory)?.name || selectedCategory}
-                  </Text>
-                  <Icon name="chevron-right" size={20} color={theme.subText} />
+                <View style={styles.categoryWrap}>
+                  {categoryList.map((cat: any) => {
+                    const isActive = selectedCategory === cat.id;
+                    return (
+                      <TouchableOpacity
+                        key={cat.id}
+                        onPress={() => setSelectedCategory(cat.id)}
+                        style={[
+                          styles.modalCatPill,
+                          { backgroundColor: isDarkMode ? '#334155' : '#F1F5F9' },
+                          isActive && styles.modalCatPillActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.modalCatText,
+                            isActive && styles.modalCatTextActive,
+                          ]}
+                        >
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-              </TouchableOpacity>
 
-              {/* Price Range */}
-              <View style={styles.priceRow}>
-                <View
-                  style={[
-                    styles.priceInputWrapper,
-                    { borderColor: theme.border },
-                  ]}
-                >
-                  <TextInput
-                    value={minPrice}
-                    onChangeText={setMinPrice}
-                    keyboardType="numeric"
-                    style={[styles.priceInput, { color: theme.text }]}
-                    placeholder="Min ฿"
-                    placeholderTextColor={theme.subText}
-                  />
-                </View>
-                <Text style={[styles.priceSeparator, { color: theme.subText }]}>
-                  -
+                {/* --- Price Range Section --- */}
+                <Text style={[styles.filterSectionTitle, { color: theme.text }]}>
+                  Price Range
                 </Text>
-                <View
-                  style={[
-                    styles.priceInputWrapper,
-                    { borderColor: theme.border },
-                  ]}
-                >
-                  <TextInput
-                    value={maxPrice}
-                    onChangeText={setMaxPrice}
-                    keyboardType="numeric"
-                    style={[styles.priceInput, { color: theme.text }]}
-                    placeholder="Max ฿"
-                    placeholderTextColor={theme.subText}
-                  />
+                <View style={styles.priceRow}>
+                  <View
+                    style={[
+                      styles.priceInputWrapper,
+                      { borderColor: theme.border },
+                    ]}
+                  >
+                    <TextInput
+                      value={minPrice}
+                      onChangeText={setMinPrice}
+                      keyboardType="numeric"
+                      style={[styles.priceInput, { color: theme.text }]}
+                      placeholder="Min ฿"
+                      placeholderTextColor={theme.subText}
+                    />
+                  </View>
+                  <Text style={[styles.priceSeparator, { color: theme.subText }]}>
+                    -
+                  </Text>
+                  <View
+                    style={[
+                      styles.priceInputWrapper,
+                      { borderColor: theme.border },
+                    ]}
+                  >
+                    <TextInput
+                      value={maxPrice}
+                      onChangeText={setMaxPrice}
+                      keyboardType="numeric"
+                      style={[styles.priceInput, { color: theme.text }]}
+                      placeholder="Max ฿"
+                      placeholderTextColor={theme.subText}
+                    />
+                  </View>
                 </View>
               </View>
-            </View>
+            </ScrollView>
 
             <View style={styles.modalButtonsRow}>
               <TouchableOpacity
@@ -416,8 +453,8 @@ const HomeScreen = () => {
                 <Text style={styles.clearSolidText}>Apply</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -445,7 +482,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   appName: { fontSize: 24, fontWeight: '800' },
-  searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  searchRow: { flexDirection: 'row', alignItems: 'center' },
   searchBar: {
     flex: 1,
     flexDirection: 'row',
@@ -464,16 +501,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  quickCategoryContainer: { marginTop: 5 },
-  quickCatPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  quickCatPillActive: { backgroundColor: '#2563EB' },
-  quickCatText: { fontSize: 14, color: '#94A3B8', fontWeight: '500' },
-  quickCatTextActive: { color: '#fff' },
   listContent: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 100 },
   row: { justifyContent: 'space-between' },
   card: {
@@ -526,21 +553,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
   },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+  filterSectionTitle: { 
+    fontSize: 16, 
+    fontWeight: '600', 
+    marginBottom: 12 
   },
-  filterLabel: { fontSize: 16, fontWeight: '500' },
-  filterRowRight: { flexDirection: 'row', alignItems: 'center' },
-  filterValue: { fontSize: 14, marginRight: 6 },
+  categoryWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 20,
+  },
+  modalCatPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 10,
+    marginBottom: 10,
+  },
+  modalCatPillActive: { backgroundColor: '#2563EB' },
+  modalCatText: { fontSize: 14, color: '#94A3B8', fontWeight: '500' },
+  modalCatTextActive: { color: '#fff' },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 16,
   },
   priceInputWrapper: {
     flex: 1,

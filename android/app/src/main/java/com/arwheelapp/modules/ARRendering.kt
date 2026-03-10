@@ -251,6 +251,9 @@ class ARRendering(
     fun updateNewModel(path: String) {
         modelPath = path
         markerlessActiveModels.forEach { modelManager.changeModel(it, path, coroutineScope) }
+        augmentedImageMap.values.forEach { imgNode ->
+            imgNode.childNodes.forEach { modelManager.changeModel(it, path, coroutineScope) }
+        }
     }
 
     fun updateModelSize(sizeInch: Float) {
@@ -258,6 +261,9 @@ class ARRendering(
         snapThreshold = cm / 100f
         val scale = cm / 45.72f
         markerlessActiveModels.forEach { modelManager.changeModelSize(it, scale) }
+        augmentedImageMap.values.forEach { imgNode ->
+            imgNode.childNodes.forEach { modelManager.changeModelSize(it, scale) }
+        }
     }
 
     fun clear() {
@@ -374,9 +380,13 @@ class ARRendering(
             val vw = arSceneView.width.toFloat()
             val vh = arSceneView.height.toFloat()
             mlHandler.runInferenceAsync(tensor, deviceRotation, vw, vh) { results ->
-                latestDetections = results
-                isNewDetection = true
-                onnxOverlayView.updateDetections(results)
+                if (previousMode == ARMode.MARKERLESS) {
+                    latestDetections = results
+                    isNewDetection = true
+                    onnxOverlayView.updateDetections(results)
+                } else {
+                    onnxOverlayView.clear()
+                }
             }
         } catch (e: Exception) { Log.e(TAG, "Inference error", e) }
     }

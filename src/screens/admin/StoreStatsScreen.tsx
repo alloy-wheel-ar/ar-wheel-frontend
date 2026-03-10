@@ -10,28 +10,32 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../../context/ThemeContext';
+import { authService } from '../../services/authService';
 import { adminService } from '../../services/adminService';
+import { useAuth } from '../../context/AuthContext';
 import Header from '../../components/Header';
 
 const { width } = Dimensions.get('window');
 
-const SystemStatsScreen = () => {
+const StoreStatsScreen = () => {
   const { theme } = useTheme();
+  const { userData } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchStats = useCallback(async () => {
+    if (!userData?.uid) return;
     try {
-      const response = await adminService.getSystemStats();
-      setStats(response.data);
+      const response = await adminService.getStoreStats(userData.uid);
+      setStats(response.data || response);
     } catch (error) {
-      console.error('Error fetching system stats:', error);
+      console.error('Error fetching store stats:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [userData]);
 
   useEffect(() => {
     fetchStats();
@@ -45,7 +49,7 @@ const SystemStatsScreen = () => {
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#10B981" />
         <Text style={[styles.loadingText, { color: theme.text }]}>Loading Statistics...</Text>
       </View>
     );
@@ -65,12 +69,12 @@ const SystemStatsScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <Header title="System Statistics" showBack />
+      <Header title="Store Statistics" showBack />
       
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#10B981']} />
         }
       >
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Overview</Text>
@@ -78,64 +82,29 @@ const SystemStatsScreen = () => {
         <View style={styles.grid}>
           <View style={styles.gridItem}>
             <StatCard 
-              title="Total Users" 
-              value={stats?.system_stats?.totalUsers || 0} 
-              icon="account-group" 
-              color="#3B82F6" 
-            />
-          </View>
-          <View style={styles.gridItem}>
-             <StatCard 
-               title="Total Stores" 
-               value={stats?.system_stats?.totalStores || 0} 
-               icon="store" 
-               color="#EAB308" 
-             />
-          </View>
-        </View>
-
-        <View style={styles.grid}>
-          <View style={styles.gridItem}>
-            <StatCard 
               title="Total Models" 
-              value={stats?.system_stats?.totalModels || 0} 
+              value={stats?.totalModels || 0} 
               icon="cube-outline" 
               color="#10B981" 
             />
           </View>
-           <View style={styles.gridItem}>
+          <View style={styles.gridItem}>
              <StatCard 
-               title="Total Categories" 
-               value={stats?.system_stats?.totalCategories || 0} 
-               icon="shape" 
-               color="#8B5CF6" 
+               title="Total Likes" 
+               value={stats?.totalLikes || 0} 
+               icon="heart-multiple" 
+               color="#EF4444" 
              />
-           </View>
+          </View>
         </View>
 
         <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 24 }]}>Recent Activity</Text>
         
         <View style={[styles.fullCard, { backgroundColor: theme.card }]}>
           <View style={styles.activityRow}>
-            <Text style={[styles.activityLabel, { color: theme.subText }]}>New Signups (Today)</Text>
+            <Text style={[styles.activityLabel, { color: theme.subText }]}>Likes Received (Today)</Text>
             <Text style={[styles.activityValue, { color: theme.text }]}>
-              {stats?.system_daily_stats?.[0]?.newUsers || 0}
-            </Text>
-          </View>
-          <View style={[styles.divider, { backgroundColor: theme.border }]} />
-          
-          <View style={styles.activityRow}>
-            <Text style={[styles.activityLabel, { color: theme.subText }]}>Models Added (Today)</Text>
-            <Text style={[styles.activityValue, { color: theme.text }]}>
-              {stats?.system_daily_stats?.[0]?.newModel || 0}
-            </Text>
-          </View>
-          <View style={[styles.divider, { backgroundColor: theme.border }]} />
-
-          <View style={styles.activityRow}>
-            <Text style={[styles.activityLabel, { color: theme.subText }]}>New Stores (Today)</Text>
-            <Text style={[styles.activityValue, { color: theme.text }]}>
-              {stats?.system_daily_stats?.[0]?.newStore || 0}
+              {stats?.store_daily_stats?.[0]?.likes || 0}
             </Text>
           </View>
         </View>
@@ -160,7 +129,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   gridItem: {
-    width: (width - 60) / 2, // 20 padding on each side = 40, plus 20 space between
+    width: (width - 60) / 2,
   },
   card: {
     padding: 16,
@@ -199,7 +168,6 @@ const styles = StyleSheet.create({
   },
   activityLabel: { fontSize: 15 },
   activityValue: { fontSize: 16, fontWeight: 'bold' },
-  divider: { height: 1, width: '100%' },
 });
 
-export default SystemStatsScreen;
+export default StoreStatsScreen;

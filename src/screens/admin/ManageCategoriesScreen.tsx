@@ -15,7 +15,6 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useTheme} from '../../context/ThemeContext';
 import {adminService} from '../../services/adminService';
-import api from '../../services/api';
 
 import Header from '../../components/Header';
 
@@ -27,11 +26,12 @@ const ManageCategoriesScreen = () => {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [newCategory, setNewCategory] = useState({
+  const [categoryForm, setCategoryForm] = useState({
     name: '',
     description: '',
-    icon: 'shape',
   });
+
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -55,6 +55,23 @@ const ManageCategoriesScreen = () => {
     fetchCategories();
   };
 
+  const onCloseModal = () => {
+    setModalVisible(false);
+    setEditingCategoryId(null); // สำคัญมาก: ต้องเคลียร์ ID ทิ้ง
+    setCategoryForm({ name: '', description: '' });
+  };
+
+  // --- [NEW] ฟังก์ชันเมื่อกดปุ่ม Edit (ดินสอ) ---
+  const handleEditPress = (category: any) => {
+    setEditingCategoryId(category.id || category._id); // เก็บ ID ไว้
+    // เอาข้อมูลเดิมมาใส่ใน Input
+    setCategoryForm({
+      name: category.name,
+      description: category.description || '',
+    });
+    setModalVisible(true); // เปิด Modal ตัวเดิม
+  };
+
   const handleDelete = (id: string, name: string) => {
     Alert.alert('Confirm', `Delete category "${name}"?`, [
       {text: 'Cancel', style: 'cancel'},
@@ -74,27 +91,33 @@ const ManageCategoriesScreen = () => {
     ]);
   };
 
-  const handleAddCategory = async () => {
-    if (!newCategory.name.trim()) {
+  const handleSave = async () => {
+    if (!categoryForm.name.trim()) {
       Alert.alert('Validation Error', 'Category name is required.');
       return;
     }
 
     setSaving(true);
     try {
-      await api.post('/categories', {
-        name: newCategory.name,
-        description: newCategory.description || '',
-        icon: newCategory.icon || 'shape',
-        isActive: true,
-      });
+      const payload = {
+        name: categoryForm.name.trim(),
+        description: categoryForm.description.trim() || undefined,
+      };
 
-      Alert.alert('Success', 'Category added successfully');
-      setModalVisible(false);
-      setNewCategory({ name: '', description: '', icon: 'shape' });
+      if (editingCategoryId) {
+        await adminService.updateCategory(editingCategoryId, payload);
+        Alert.alert('Success', 'Category updated successfully');
+      } else {
+        await adminService.createCategory({ ...payload, isActive: true });
+        Alert.alert('Success', 'Category added successfully');
+      }
+
+      onCloseModal();
       fetchCategories();
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to create category: ' + error.message);
+      const errorMsg = error.response?.data?.message || error.message;
+      const actionText = editingCategoryId ? 'update' : 'create';
+      Alert.alert('Error', `Failed to ${actionText} category: ` + errorMsg);
     } finally {
       setSaving(false);
     }
@@ -114,7 +137,7 @@ const ManageCategoriesScreen = () => {
 
   return (
     <View style={{flex: 1, backgroundColor: theme.background}}>
-      <Header title="Manage Categories" />
+      <Header title="Manage Categories" showBack />
       <FlatList
         data={cats}
         keyExtractor={item => item.id?.toString() || item._id?.toString()}
@@ -135,12 +158,12 @@ const ManageCategoriesScreen = () => {
           </View>
         }
         renderItem={({item}) => {
-          const isDeleted = item.status === 'Deleted';
+          const isDisabled = item.isActive === false;
           return (
             <View
               style={[
                 styles.card,
-                {backgroundColor: theme.card, opacity: isDeleted ? 0.6 : 1},
+                {backgroundColor: theme.card, opacity: isDisabled ? 0.6 : 1},
               ]}>
               <View style={[styles.iconBox, {backgroundColor: '#F3E8FF'}]}>
                 <Icon name="shape" size={24} color="#8B5CF6" />
@@ -151,34 +174,34 @@ const ManageCategoriesScreen = () => {
                     styles.title,
                     {
                       color: theme.text,
-                      textDecorationLine: isDeleted ? 'line-through' : 'none',
+                      textDecorationLine: isDisabled ? 'line-through' : 'none',
                     },
                   ]}>
                   {item.name}
                 </Text>
-                <Text style={{color: theme.subText}}>
-                  {item.count != null ? `${item.count} items` : ''}
-                </Text>
+                {item.description ? (
+                  <Text style={{color: theme.subText, fontSize: 13, marginTop: 4}} numberOfLines={1}>
+                    {item.description}
+                  </Text>
+                ) : null}
               </View>
               <View style={styles.actions}>
                 <TouchableOpacity
-                  onPress={() => Alert.alert('Edit', item.name)}
-                  disabled={isDeleted}
+                  onPress={() => handleEditPress(item)}
                   style={styles.actionBtn}>
                   <Icon
                     name="pencil-outline"
                     size={24}
-                    color={isDeleted ? theme.subText : '#F59E0B'}
+                    color='#F59E0B'
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => handleDelete(item.id || item._id, item.name)}
-                  disabled={isDeleted}
                   style={styles.actionBtn}>
                   <Icon
                     name="trash-can-outline"
                     size={24}
-                    color={isDeleted ? theme.subText : '#EF4444'}
+                    color='#EF4444' // สีแดง
                   />
                 </TouchableOpacity>
               </View>
@@ -204,11 +227,13 @@ const ManageCategoriesScreen = () => {
         visible={modalVisible}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={onCloseModal}
       >
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onCloseModal}>
           <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()} style={[styles.modalContent, { backgroundColor: theme.card }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>Add New Category</Text>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              {editingCategoryId ? "Edit Category" : "Add New Category"}
+            </Text>
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%', maxHeight: 400 }}>
                <Text style={[styles.inputLabel, { color: theme.subText }]}>Category Name *</Text>
@@ -216,8 +241,8 @@ const ManageCategoriesScreen = () => {
                  style={[styles.input, { color: theme.text, borderColor: theme.border }]}
                  placeholder="e.g. SUV, Sedan"
                  placeholderTextColor={theme.subText}
-                 value={newCategory.name}
-                 onChangeText={v => setNewCategory({ ...newCategory, name: v })}
+                 value={categoryForm.name}
+                 onChangeText={v => setCategoryForm({ ...categoryForm, name: v })}
                />
 
                <Text style={[styles.inputLabel, { color: theme.subText, marginTop: 15 }]}>Description</Text>
@@ -225,28 +250,24 @@ const ManageCategoriesScreen = () => {
                  style={[styles.input, { color: theme.text, borderColor: theme.border, height: 80, textAlignVertical: 'top' }]}
                  placeholder="About this category..."
                  placeholderTextColor={theme.subText}
-                 value={newCategory.description}
-                 onChangeText={v => setNewCategory({ ...newCategory, description: v })}
+                 value={categoryForm.description}
+                 onChangeText={v => setCategoryForm({ ...categoryForm, description: v })}
                  multiline
-               />
-
-               <Text style={[styles.inputLabel, { color: theme.subText, marginTop: 15 }]}>Icon Name (MaterialDesign)</Text>
-               <TextInput
-                 style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                 placeholder="e.g. car, shape, cube"
-                 placeholderTextColor={theme.subText}
-                 value={newCategory.icon}
-                 onChangeText={v => setNewCategory({ ...newCategory, icon: v })}
-                 autoCapitalize="none"
                />
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setModalVisible(false)} disabled={saving}>
+              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={onCloseModal} disabled={saving}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.saveButton, { backgroundColor: '#8B5CF6' }]} onPress={handleAddCategory} disabled={saving}>
-                <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Create'}</Text>
+              <TouchableOpacity style={[styles.modalButton, styles.saveButton, { backgroundColor: '#8B5CF6' }]} onPress={handleSave} disabled={saving}>
+                {saving ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.saveButtonText}>
+                    {editingCategoryId ? 'Save' : 'Create'}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </TouchableOpacity>

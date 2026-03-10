@@ -74,7 +74,7 @@ const EditProfileScreen = () => {
       setCountry(userData.address?.country || '');
       setPostcode(userData.address?.postcode || '');
 
-      setAvatarUri(userData.profileImageUrl || userData.avatar || userData.profileImg || null);
+      setAvatarUri(userData.profileImg || userData.profileImageUrl || userData.photoURL || null);
     }
   }, [userData]);
 

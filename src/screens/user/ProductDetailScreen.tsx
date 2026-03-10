@@ -58,11 +58,19 @@ useEffect(() => {
   const handleTryOnAR = async () => {
     try {
       setIsDownloading(true);
+      const currentTargetUrl = Platform.OS === 'ios' ? item.iosModelUrl : item.androidModelUrl;
+      if (!currentTargetUrl) {
+         Alert.alert('AR Unavailable', 'This specific model does not have an AR file configured yet.');
+         setIsDownloading(false);
+         return;
+      }
+
       const allModelsResponse = await productService.getAll(); 
       const allModels: WheelModel[] = allModelsResponse.data || allModelsResponse;
+      const validModels = allModels.filter(m => Platform.OS === 'ios' ? m.iosModelUrl : m.androidModelUrl);
 
       const modelDataList = await Promise.all(
-        allModels.map(async (m) => {
+        validModels.map(async (m) => {
           const targetUrl = Platform.OS === 'ios' ? m.iosModelUrl : m.androidModelUrl;
           
           const localPath = await resolveModelPath({ ...m, modelUrl: targetUrl });
@@ -78,7 +86,6 @@ useEffect(() => {
         })
       );
 
-      const currentTargetUrl = Platform.OS === 'ios' ? item.iosModelUrl : item.androidModelUrl;
       const currentLocalPath = await resolveModelPath({ ...item, modelUrl: currentTargetUrl });
 
       setSelectedModel({

@@ -8,26 +8,36 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../../context/ThemeContext';
-import { productService } from '../../services/productService'; // เรียก Service
-import { useFocusEffect, useNavigation } from '@react-navigation/native'; // เพื่อให้โหลดใหม่ทุกครั้งที่เข้าหน้า
+import { productService } from '../../services/productService';
+import { useAuth } from '../../context/AuthContext';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import Header from '../../components/Header';
 
 const ManageModelsScreen = () => {
   const { theme } = useTheme();
+  const { userData, userRole } = useAuth();
   const navigation = useNavigation<any>();
-  const [models, setModels] = useState<any[]>([]); // เก็บข้อมูลจริง
+  const [models, setModels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ฟังก์ชันดึงข้อมูลจาก Backend
   const fetchModels = async () => {
     try {
       const response = await productService.getAll();
-      setModels(response.data); // เอาข้อมูลใส่ State
+      let allModels = response.data || response;
+      
+      // If store, show only their own models
+      const userId = userData?.id || userData?.uid;
+      if (userRole === 'store' && userId) {
+        allModels = allModels.filter((m: any) => m.owner === userId);
+      }
+      
+      setModels(allModels);
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'ไม่สามารถโหลดข้อมูลได้');
@@ -37,20 +47,17 @@ const ManageModelsScreen = () => {
     }
   };
 
-  // โหลดข้อมูลเมื่อเข้าหน้านี้
   useFocusEffect(
     useCallback(() => {
       fetchModels();
     }, []),
   );
 
-  // ฟังก์ชัน Refresh (ดึงหน้าจอลงเพื่อโหลดใหม่)
   const onRefresh = () => {
     setRefreshing(true);
     fetchModels();
   };
 
-  // ฟังก์ชันลบข้อมูล
   const handleDelete = (id: string) => {
     Alert.alert(
       'Confirm Delete',
@@ -62,10 +69,8 @@ const ManageModelsScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // 1. ยิง API ลบ
               await productService.delete(id);
-              // 2. อัปเดตหน้าจอโดยกรองเอาตัวที่ลบออก
-              setModels(prev => prev.filter(m => m.id !== id)); // หรือ m._id แล้วแต่ database
+              setModels(prev => prev.filter(m => m.id !== id));
               Alert.alert('Success', 'Model deleted successfully');
             } catch (error) {
               Alert.alert('Error', 'Failed to delete model');
@@ -96,7 +101,6 @@ const ManageModelsScreen = () => {
       <Header title="Manage Models" />
       <FlatList
         data={models}
-        // ⚠️ เช็คว่า Backend ส่ง id หรือ _id มา
         keyExtractor={item => item.id || item._id}
         refreshControl={
           <RefreshControl
@@ -114,12 +118,18 @@ const ManageModelsScreen = () => {
           </Text>
         }
         renderItem={({ item }) => {
-          // Mapping ข้อมูล: ตรวจสอบชื่อ field กับ Backend ว่าตรงกันไหม (เช่น name หรือ title, price)
           return (
             <View style={[styles.card, { backgroundColor: theme.card }]}>
-              <View style={[styles.iconBox, { backgroundColor: '#FFFBEB' }]}>
-                <Icon name="car-wheel" size={24} color="#F59E0B" />
-              </View>
+              {item.images && item.images.length > 0 ? (
+                <Image 
+                  source={{ uri: item.images[0] }} 
+                  style={[styles.iconBox, { backgroundColor: '#fff', resizeMode: 'cover' }]} 
+                />
+              ) : (
+                <View style={[styles.iconBox, { backgroundColor: '#FFFBEB' }]}>
+                  <Icon name="car-wheel" size={24} color="#F59E0B" />
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={[styles.title, { color: theme.text }]}>
                   {item.name || item.modelName}

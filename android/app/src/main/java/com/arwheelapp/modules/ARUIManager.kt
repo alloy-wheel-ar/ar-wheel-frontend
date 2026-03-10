@@ -70,6 +70,9 @@ class ARUIManager(
     private var modelList: MutableList<ARModelItem> = mutableListOf()
     private var sizeList = listOf(13, 14, 15, 16, 17, 18, 19, 20, 21, 22)
 
+    private var currentModelIndex = 0
+    private var currentSizeIndex = 5 // Default to 18" (index 5)
+
     fun setModelsFromJson(jsonString: String) {
         try {
             val jsonArray = org.json.JSONArray(jsonString)
@@ -578,16 +581,23 @@ class ARUIManager(
                     val pos = rv.getChildAdapterPosition(cv).takeIf { it != -1 } ?: return
                     
                     if (isModel) {
+                        currentModelIndex = pos
                         val selectedModel = modelList[pos]
                         tvSelectionTitle?.text = selectedModel.name.uppercase()
                         onModelSelected?.invoke(selectedModel.path)
                     } else {
+                        currentSizeIndex = pos
                         onSizeSelected?.invoke(sizeList[pos].toFloat())
                     }
                 }
             }
         })
         selectionContainer?.addView(selectionRecyclerView)
+
+        val targetIndex = if (isModel) currentModelIndex else currentSizeIndex
+        selectionRecyclerView?.post {
+            selectionRecyclerView?.scrollToPosition(targetIndex)
+        }
     }
 
     private fun toggleARMode() {

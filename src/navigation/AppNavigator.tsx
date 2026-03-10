@@ -39,8 +39,8 @@ import ManageCategoriesScreen from '../screens/admin/ManageCategoriesScreen';
 import ManageModelsScreen from '../screens/admin/ManageModelsScreen';
 import ManageAddModelScreen from '../screens/admin/ManageAddModelScreen';
 import SystemLogsScreen from '../screens/admin/SystemLogsScreen';
-import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import SystemStatsScreen from '../screens/admin/SystemStatsScreen';
+import StoreStatsScreen from '../screens/admin/StoreStatsScreen';
 import { resolveModelPath } from '../services/modelCacheService';
 import { getSelectedModel, getModelPaths, storage } from '../utils/storage';
 
@@ -58,7 +58,7 @@ export type RootStackParamList = {
   ARPreferences: undefined;
 
   // Admin / Store
-  AdminDashboard: undefined;
+  StoreStats: undefined;
   ManageUsers: undefined;
   ManageModels: undefined;
   ManageAddModel: undefined;
@@ -132,8 +132,10 @@ function MainTabNavigator() {
               if (ARLauncher && typeof ARLauncher.openARActivity === 'function') {
                 const response = await productService.getAll();
                 const allModels: WheelModel[] = response.data || response;
+                const validModels = allModels.filter(m => Platform.OS === 'ios' ? m.iosModelUrl : m.androidModelUrl);
+                
                 const modelDataList = await Promise.all(
-                  allModels.map(async (m) => {
+                  validModels.map(async (m) => {
                     const targetUrl = Platform.OS === 'ios' ? m.iosModelUrl : m.androidModelUrl;
                     const localPath = await resolveModelPath({ ...m, modelUrl: targetUrl });
                     
@@ -279,17 +281,17 @@ const AppNavigationWrapper = () => {
                 component={ManageAddModelScreen}
                 options={{ headerShown: false }}
               />
+              <Stack.Screen
+                name="StoreStats"
+                component={StoreStatsScreen}
+                options={{ headerShown: false }}
+              />
             </>
           )}
 
           {/* Admin: Full system management */}
           {userRole === 'admin' && (
             <>
-              <Stack.Screen
-                name="AdminDashboard"
-                component={AdminDashboardScreen}
-                options={{ headerShown: false }}
-              />
               <Stack.Screen
                 name="ManageUsers"
                 component={ManageUsersScreen}

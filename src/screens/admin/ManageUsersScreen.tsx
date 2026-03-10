@@ -11,6 +11,7 @@ import {
   RefreshControl,
   TextInput,
   ScrollView,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../../context/ThemeContext';
@@ -25,6 +26,7 @@ interface User {
   role: 'visitor' | 'user' | 'store' | 'admin';
   status?: string;
   phoneNumber?: string;
+  profileImg?: string;
 }
 
 const ROLES = [
@@ -63,6 +65,7 @@ const ManageUsersScreen = () => {
         role: user.role || 'user',
         status: user.status || 'active',
         phoneNumber: user.phoneNumber || '',
+        profileImg: user.profileImg || user.photoURL || '',
       }));
       setUsers(usersData);
     } catch (error: any) {
@@ -175,13 +178,20 @@ const ManageUsersScreen = () => {
 
           return (
             <View style={[styles.card, { backgroundColor: theme.card, opacity: disabled ? 0.6 : 1 }]}>
-              <View style={[styles.iconBox, { backgroundColor: getRoleColor(item.role) + '20' }]}>
-                <Icon
-                  name={item.role === 'admin' ? 'shield-account' : item.role === 'store' ? 'store' : 'account'}
-                  size={24}
-                  color={getRoleColor(item.role)}
+              {item.profileImg ? (
+                <Image
+                  source={{ uri: item.profileImg }}
+                  style={[styles.iconBox, { backgroundColor: '#fff', resizeMode: 'cover' }]}
                 />
-              </View>
+              ) : (
+                <View style={[styles.iconBox, { backgroundColor: getRoleColor(item.role) + '20' }]}>
+                  <Icon
+                    name={item.role === 'admin' ? 'shield-account' : item.role === 'store' ? 'store' : 'account'}
+                    size={24}
+                    color={getRoleColor(item.role)}
+                  />
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={[styles.title, { color: theme.text, textDecorationLine: disabled ? 'line-through' : 'none' }]}>
                   {item.username}

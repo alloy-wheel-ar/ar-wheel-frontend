@@ -16,10 +16,12 @@ import { pick, types, isErrorWithCode, errorCodes, DocumentPickerResponse } from
 import { useTheme } from '../../context/ThemeContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { productService } from '../../services/productService';
+import { useAuth } from '../../context/AuthContext';
 import Header from '../../components/Header';
 
 const ManageAddModelScreen = () => {
   const { theme } = useTheme();
+  const { userData } = useAuth();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
 
@@ -124,6 +126,8 @@ const ManageAddModelScreen = () => {
     try {
       setLoading(true);
 
+      const userId = userData?.id || userData?.uid;
+
       const payload = {
         name: formData.name,
         price: Number(formData.price),
@@ -134,6 +138,7 @@ const ManageAddModelScreen = () => {
         width: formData.width,
         offset: formData.offset,
         pcd: formData.pcd,
+        owner: userId || 'default',
       };
 
       let glbObj = glbFile ? { uri: glbFile.uri, type: glbFile.type || 'model/gltf-binary', name: glbFile.name } : null;
