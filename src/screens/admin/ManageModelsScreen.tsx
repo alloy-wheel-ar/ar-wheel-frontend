@@ -28,11 +28,12 @@ const ManageModelsScreen = () => {
 
   const fetchModels = async () => {
     try {
+      const userId = userData?.id || userData?.uid;
+
       const response = await productService.getAll();
       let allModels = response.data || response;
       
       // If store, show only their own models
-      const userId = userData?.id || userData?.uid;
       if (userRole === 'store' && userId) {
         allModels = allModels.filter((m: any) => m.owner === userId);
       }

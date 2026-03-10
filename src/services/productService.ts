@@ -9,6 +9,7 @@ export const productService = {
     minPrice?: number;
     maxPrice?: number;
     os?: string;
+    owner?: string;
   }) => {
     return api.get('/models', { params });
   },

@@ -115,6 +115,18 @@ const RegisterScreen = () => {
         />
 
         <CustomInput
+          name="email"
+          label="Email"
+          placeholder="Email"
+          control={control}
+          autoCapitalize="none"
+          rules={{
+            required: 'Email is required',
+            pattern: { value: /\S+@\S+\.\S+/, message: 'Invalid email format' },
+          }}
+        />
+
+        <CustomInput
           name="password"
           label="Password"
           placeholder="Password"
@@ -122,6 +134,7 @@ const RegisterScreen = () => {
           secureTextEntry={!showPassword}
           rightIcon={showPassword ? 'eye-off' : 'eye'}
           onRightIconPress={() => setShowPassword(!showPassword)}
+          autoCapitalize="none"
           rules={{
             required: 'Password is required',
             minLength: {
@@ -132,21 +145,11 @@ const RegisterScreen = () => {
         />
 
         <CustomInput
-          name="email"
-          label="Email"
-          placeholder="Email"
-          control={control}
-          rules={{
-            required: 'Email is required',
-            pattern: { value: /\S+@\S+\.\S+/, message: 'Invalid email format' },
-          }}
-        />
-
-        <CustomInput
           name="phoneNumber"
           label="Phone Number"
           placeholder="Phone Number"
           control={control}
+          keyboardType="number-pad"
           rules={{ required: 'Phone Number is required' }}
         />
 

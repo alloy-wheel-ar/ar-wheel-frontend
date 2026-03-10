@@ -30,7 +30,6 @@ interface User {
 }
 
 const ROLES = [
-  { value: 'visitor', label: 'Visitor', color: '#94A3B8' },
   { value: 'user', label: 'User', color: '#3B82F6' },
   { value: 'store', label: 'Store', color: '#F59E0B' },
   { value: 'admin', label: 'Admin', color: '#EF4444' },

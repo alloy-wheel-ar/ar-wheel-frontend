@@ -88,15 +88,19 @@ class ModelManager(private val arSceneView: ARSceneView) {
     // ─────────────────────────────────────────────────────────────────────────
     fun changeModel(rootNode: Node, modelPath: String, scope: CoroutineScope) {
         scope.launch {
-            val modelInstance = if (modelPath.startsWith("/")) {
-                modelLoader.createModelInstance(File(modelPath))
-            } else {
-                modelLoader.createModelInstance(modelPath)
-            }
-            withContext(Dispatchers.Main) {
-                rootNode.childNodes.forEach { it.destroy() }
-                rootNode.clearChildNodes()
-                modelInstance?.let { setupWheelSystem(rootNode, ModelNode(modelInstance = it)) }
+            try {
+                val modelInstance = if (modelPath.startsWith("/")) {
+                    modelLoader.createModelInstance(File(modelPath))
+                } else {
+                    modelLoader.createModelInstance(modelPath)
+                }
+                withContext(Dispatchers.Main) {
+                    rootNode.childNodes.toList().forEach { it.destroy() }
+                    rootNode.clearChildNodes()
+                    modelInstance?.let { setupWheelSystem(rootNode, ModelNode(modelInstance = it)) }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

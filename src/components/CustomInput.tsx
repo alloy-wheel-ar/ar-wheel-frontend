@@ -5,6 +5,7 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
+  KeyboardTypeOptions,
 } from 'react-native';
 import { Controller, RegisterOptions } from 'react-hook-form';
 import { COLORS } from '../constants/colors';
@@ -19,6 +20,8 @@ interface CustomInputProps {
   rules?: RegisterOptions;
   rightIcon?: string;
   onRightIconPress?: () => void;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  keyboardType?: KeyboardTypeOptions;
 }
 
 const CustomInput = ({
@@ -30,6 +33,8 @@ const CustomInput = ({
   rules = {},
   rightIcon,
   onRightIconPress,
+  autoCapitalize,
+  keyboardType,
 }: CustomInputProps) => {
   return (
     <Controller
@@ -51,6 +56,8 @@ const CustomInput = ({
               placeholderTextColor="#BDBDBD"
               style={styles.input}
               secureTextEntry={secureTextEntry}
+              autoCapitalize={autoCapitalize}
+              keyboardType={keyboardType}
             />
             {rightIcon && (
               <TouchableOpacity onPress={onRightIconPress} style={styles.icon}>

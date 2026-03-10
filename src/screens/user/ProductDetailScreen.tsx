@@ -12,6 +12,10 @@ import {
   NativeModules,
   Alert,
   ActivityIndicator,
+  FlatList,
+  Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -24,6 +28,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { productService } from '../../services/productService';
 
 const { ARLauncher } = NativeModules;
+const { width } = Dimensions.get('window');
 
 const ProductDetailScreen = () => {
   const { theme } = useTheme();
@@ -35,6 +40,13 @@ const ProductDetailScreen = () => {
   const [isFavorited, setIsFavorited] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = Math.round(event.nativeEvent.contentOffset.x / slideSize);
+    setCurrentImageIndex(index);
+  };
 
 useEffect(() => {
   const checkFavoriteStatus = async () => {
@@ -86,7 +98,7 @@ useEffect(() => {
         })
       );
 
-      const currentLocalPath = await resolveModelPath({ ...item, modelUrl: currentTargetUrl });
+      const currentLocalPath = await resolveModelPath({ ...item } as any);
 
       setSelectedModel({
         id: item.id,
@@ -96,7 +108,7 @@ useEffect(() => {
         modelUrl: currentTargetUrl,
         localPath: currentLocalPath,
         imageUrl: item.images?.[0] ?? '',
-      });
+      } as any);
 
       if (ARLauncher && typeof ARLauncher.openARActivity === 'function') {
         const sizeStr = storage?.getString('@ar_marker_size') || '15';
@@ -135,8 +147,37 @@ useEffect(() => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Image Section */}
         <View style={[styles.imageWrapper, { backgroundColor: theme.card }]}>
-          {item.images?.[0] ? (
-            <Image source={{ uri: item.images[0] }} style={styles.image} resizeMode="contain" />
+          {item.images && item.images.length > 0 ? (
+             <>
+               <FlatList
+                 data={item.images}
+                 keyExtractor={(_, index) => index.toString()}
+                 horizontal
+                 pagingEnabled
+                 showsHorizontalScrollIndicator={false}
+                 onScroll={onScroll}
+                 scrollEventThrottle={16}
+                 renderItem={({ item: imgUri }) => (
+                   <View style={{ width: width - 32, height: 350, justifyContent: 'center', alignItems: 'center' }}>
+                     <Image source={{ uri: imgUri }} style={styles.image} resizeMode="contain" />
+                   </View>
+                 )}
+               />
+               {/* Pagination Dots */}
+               {item.images.length > 1 && (
+                 <View style={styles.paginationDots}>
+                   {item.images.map((_, i) => (
+                     <View
+                       key={i}
+                       style={[
+                         styles.dot,
+                         { backgroundColor: i === currentImageIndex ? '#2563EB' : '#D1D5DB' }
+                       ]}
+                     />
+                   ))}
+                 </View>
+               )}
+             </>
           ) : (
             <Icon name="cube-outline" size={60} color="#9CA3AF" />
           )}
@@ -147,7 +188,7 @@ useEffect(() => {
 
         <View style={styles.detailsContainer}>
           {/* Header Info */}
-          <Text style={[styles.brandText, { color: '#2563EB' }]}>{item.brand || 'Premium Wheel'}</Text>
+          <Text style={[styles.brandText, { color: '#2563EB' }]}>{item.brand}</Text>
           <Text style={[styles.name, { color: theme.text }]}>{item.name}</Text>
           <Text style={styles.price}>฿{Number(item.price)?.toLocaleString()}</Text>
 
@@ -251,6 +292,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   image: { width: '85%', height: '85%' },
+  paginationDots: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 16,
+    alignSelf: 'center',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+  },
   backBtnOverlay: {
     position: 'absolute',
     top: 20,
