@@ -356,7 +356,8 @@ class ARRendering(
                                 .apply { isVisible = true })
                             arSceneView.addChildNode(this)
                         }
-                    }.isVisible = (img.trackingMethod == AugmentedImage.TrackingMethod.FULL_TRACKING)
+                    }.isVisible = (img.trackingMethod == AugmentedImage.TrackingMethod.FULL_TRACKING
+                                || img.trackingMethod == AugmentedImage.TrackingMethod.LAST_KNOWN_POSE)
                 }
                 TrackingState.STOPPED -> augmentedImageMap.remove(img)?.let {
                     arSceneView.removeChildNode(it)
