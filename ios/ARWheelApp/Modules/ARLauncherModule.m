@@ -7,6 +7,7 @@
 
 RCT_EXTERN_METHOD(openARActivity:(NSString *)initialModelPath
                   modelPathsJson:(NSString *)modelPathsJson
+                  markerSize:(double)markerSize
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 

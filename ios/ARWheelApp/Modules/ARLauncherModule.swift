@@ -14,6 +14,7 @@ class ARLauncherModule: NSObject {
     @objc func openARActivity(
         _ initialModelPath: String,
         modelPathsJson: String,
+        markerSize: Double,
         resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -24,7 +25,8 @@ class ARLauncherModule: NSObject {
             }
             let arVC = ARViewController.create(
                 initialModelPath: initialModelPath,
-                modelPathsJson: modelPathsJson
+                modelPathsJson: modelPathsJson,
+                markerSize: markerSize
             )
             arVC.modalPresentationStyle = .fullScreen
             presentingVC.present(arVC, animated: true) {

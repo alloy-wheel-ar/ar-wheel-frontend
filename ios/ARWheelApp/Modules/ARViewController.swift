@@ -21,11 +21,13 @@ class ARViewController: UIViewController {
     private var currentMode: ARMode = .default
     private var initialModelPath: String = "models/default.glb"
     private var modelPaths: [String] = []
+    private var markerSize: Double = 15.0
 
     // MARK: - Entry
-    static func create(initialModelPath: String, modelPathsJson: String) -> ARViewController {
+    static func create(initialModelPath: String, modelPathsJson: String, markerSize: Double) -> ARViewController {
         let vc = ARViewController()
         vc.initialModelPath = initialModelPath.isEmpty ? "models/default.glb" : initialModelPath
+        vc.markerSize = markerSize
 
         var paths: [String] = []
         let jsonStr = modelPathsJson.isEmpty ? "[]" : modelPathsJson
@@ -204,7 +206,7 @@ class ARViewController: UIViewController {
             config.sceneReconstruction = .mesh
         }
         if mode == .markerBased {
-            config.detectionImages = arRendering.makeReferenceImages()
+            config.detectionImages = arRendering.makeReferenceImages(markerSize: Float(markerSize / 100.0))
             config.maximumNumberOfTrackedImages = 4
         }
         return config

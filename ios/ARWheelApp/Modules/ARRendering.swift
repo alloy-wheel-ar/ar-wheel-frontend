@@ -85,6 +85,7 @@ class ARRendering {
     private static let maxAlpha: Float = 0.60
     private static let minDist: Float  = 0.02
     private static let maxDist: Float  = 0.30
+    private static let warmupS: TimeInterval = 20.0
 
     // MARK: - Dependencies
     private weak var arView: ARView?
@@ -99,6 +100,7 @@ class ARRendering {
     private var lastHitTestTime: TimeInterval = 0
     private var infInterval: TimeInterval = ARRendering.infMinIntervalS
     private var htInterval: TimeInterval = ARRendering.htMinIntervalS
+    private var sessionStartTime: TimeInterval = 0
 
     // Marker-based: imageAnchor name → entity
     private var imageAnchorMap: [String: Entity] = [:]
@@ -166,7 +168,10 @@ class ARRendering {
         guard let model = selectedModel,
               let ws = wheelStates[ObjectIdentifier(model)] else { return }
         switch editMode {
-        case "ROT": ws.manualRotZ       = value * 180.0
+        case "POS": ws.manualOffsetForward = value // value is already -1...1 from slider
+        case "ROT": ws.manualRotZ          = value * 180.0
+        default: break
+        }
     }
 
     func finishAdjusting() {
@@ -248,9 +253,11 @@ class ARRendering {
 
     // MARK: - Render entry-point (called every ARFrame)
     func render(arView: ARView, frame: ARFrame, mode: ARMode, deviceOrientation: UIDeviceOrientation) {
+        let now = Date().timeIntervalSinceReferenceDate
         if previousMode.map({ different($0, mode) }) ?? true {
             handleModeSwitch()
             previousMode = mode
+            sessionStartTime = now
         }
         switch mode {
         case .markerBased:
@@ -304,6 +311,7 @@ class ARRendering {
             onnxOverlayView.clear()
             bboxCountHistory.removeAll()
         }
+        sessionStartTime = Date().timeIntervalSinceReferenceDate
     }
 
     // MARK: - Marker-based (legacy, via session delegate)
@@ -445,7 +453,8 @@ class ARRendering {
             ws.lastRot = planeRot
 
             // Auto-upgrade anchor
-            if confirmDetection(bboxRatio: ratio) {
+            let warmupElapsed = (now - sessionStartTime) >= ARRendering.warmupS
+            if confirmDetection(bboxRatio: ratio) && warmupElapsed {
                 let quality = AnchorQuality(bboxRatio: ratio)
                 if ws.anchorQuality == nil || quality.score() > ws.anchorQuality!.score() + ARRendering.anchorUpgradeMargin {
                     ws.anchor?.removeFromParent()
