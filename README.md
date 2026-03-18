@@ -79,6 +79,19 @@ npm run ios
 *   **Storage**: React Native MMKV
 *   **Forms**: React Hook Form with Yup validation
 
+## ⚙️ Configuration
+
+### API Base URL
+The API endpoint is configured in `src/services/api.ts`:
+
+| Environment        | Base URL                             |
+|--------------------|--------------------------------------|
+| **Production**     | `https://ar-alloy-api.onrender.com`  |
+| **Android Emulator** | `http://10.0.2.2:3000`            |
+| **Physical Device** | `http://<your-computer-ip>:3000`   |
+
+> **Note**: If you are running the backend locally, update the `baseURL` in `src/services/api.ts` to match your setup.
+
 ## 📝 Troubleshooting
 
 *   **Android Build Fail**: Ensure `ANDROID_HOME` is set in your environment variables and JDK 17 is selected.
